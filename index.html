@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>급식 알림 프로그램</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 16px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #result {
+            white-space: pre-wrap;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍱 급식 정보 조회</h1>
+    <button onclick="fetchMeal('today')">오늘의 급식 보기</button>
+    <button onclick="fetchMeal('week')">주간 급식 보기</button>
+    <div id="result">김해대청고등학교.</div>
+
+    <script>
+        const SCHOOL_CODE = "9010282"
+        const OFFICE_CODE = "S10";
+        const API_KEY = "94f7784bb8694dddaede7dcd4f685706";
+
+        function formatDate(date) {
+            // 한국 시간 기준으로 조정 (UTC+9)
+            const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+            return kst.toISOString().slice(0, 10).replace(/-/g, "");
+        }
+
+        async function getMealInfo(date) {
+            const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?KEY=${API_KEY}&Type=json&ATPT_OFCDC_SC_CODE=${OFFICE_CODE}&SD_SCHUL_CODE=${SCHOOL_CODE}&MLSV_YMD=${date}`;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return "API 요청 실패";
+                const data = await res.json();
+                const meals = data.mealServiceDietInfo[1].row;
+                return meals.map(m => `[${m.MMEAL_SC_NM}]
+${m.DDISH_NM.replace(/<br\/>/g, '\n')}`).join('\n\n');
+            } catch {
+                return "급식 정보 없음";
+            }
+        }
+
+        async function fetchMeal(mode) {
+            const resultDiv = document.getElementById("result");
+            const today = new Date();
+
+            if (mode === "today") {
+                const dateStr = formatDate(today);
+                const result = await getMealInfo(dateStr);
+                resultDiv.innerText = `📅 오늘의 급식\n\n${result}`;
+            } else {
+                let all = [];
+                for (let i = 0; i < 5; i++) {
+                    const d = new Date();
+                    d.setDate(today.getDate() + i);
+                    const dateStr = formatDate(d);
+                    const pretty = `${d.getMonth() + 1}월 ${d.getDate()}일 (${["일","월","화","수","목","금","토"][d.getDay()]})`;
+                    const meals = await getMealInfo(dateStr);
+                    all.push(`■ ${pretty}\n${meals}`);
+                }
+                resultDiv.innerText = `📅 주간 급식\n\n${all.join("\n\n")}`;
+            }
+        }
+    </script>
+</body>
+</html>
